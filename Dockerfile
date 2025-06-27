@@ -4,10 +4,16 @@ WORKDIR /app
 
 # 复制依赖文件
 COPY package*.json ./
+COPY .npmrc ./
 COPY client/package*.json ./client/
 
-# 安装依赖
-RUN npm install && cd client && npm install && cd ..
+# 安装依赖时忽略警告
+RUN npm config set loglevel error && \
+    npm config set fund false && \
+    npm config set audit false && \
+    npm config set legacy-peer-deps true && \
+    npm install --no-fund --no-audit && \
+    cd client && npm install --no-fund --no-audit && cd ..
 
 # 设置环境变量避免下载Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
