@@ -23,8 +23,10 @@
 
 ### 环境要求
 
-- Node.js 14.x 或更高版本
+- Node.js  LTS（长期支持）版本
 - 安装了 Microsoft Edge 或 Google Chrome 浏览器
+Edge: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+Chrome: C:\Program Files\Google\Chrome\Application\chrome.exe
 
 ### 安装依赖
 
@@ -58,16 +60,31 @@ npm start
 
 ### 部署到Render云平台
 
-项目已配置为可以轻松部署到Render云平台：
+项目支持两种部署方式：
+
+#### 1. Docker部署（推荐）
+
+使用Docker部署更加稳定可靠，特别适合包含Puppeteer的项目：
+
+1. 将代码（包含Dockerfile）推送到GitHub或GitLab仓库
+2. 在Render控制台创建新的Web服务
+3. 选择Docker运行时
+4. 其他设置保持默认值
+
+详细的Docker部署指南请参阅 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) 文件。
+
+#### 2. Node.js部署
+
+传统的Node.js部署方式：
 
 1. 将代码推送到GitHub或GitLab仓库
 2. 在Render控制台创建新的Web服务
-3. 连接您的Git仓库
+3. 选择Node运行时
 4. 使用以下配置：
    - **Build Command**: `npm install && cd client && npm install && npm run build && cd ..`
    - **Start Command**: `node server.js`
 
-详细部署指南请参阅 [RENDER_DEPLOY.md](RENDER_DEPLOY.md) 文件。
+详细的Node.js部署指南请参阅 [RENDER_DEPLOY.md](RENDER_DEPLOY.md) 文件。
 
 ## 使用方法
 
