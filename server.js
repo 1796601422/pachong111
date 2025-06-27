@@ -100,9 +100,52 @@ app.post('/api/fetch-zhihu-data', async (req, res) => {
     console.log(`解析后的Cookie对象数量: ${cookieObjects.length}`);
 
     // 启动浏览器
-    // 在云环境中使用内置的Chromium
-    logProgress('在云环境中启动浏览器');
+    // 检测环境并选择合适的浏览器路径
+    let executablePath = '';
+    const isCloudEnv = process.env.NODE_ENV === 'production' && !process.env.IS_LOCAL;
+    
+    if (isCloudEnv) {
+      // 在云环境中使用内置的Chromium
+      logProgress('在云环境中启动浏览器');
+      try {
+        // 尝试使用puppeteer自带的Chromium
+        const puppeteerDefault = require('puppeteer');
+        executablePath = puppeteerDefault.executablePath();
+        logProgress('使用Puppeteer默认Chromium路径: ' + executablePath);
+      } catch (error) {
+        // 如果获取默认路径失败，使用常见的云环境Chromium路径
+        logProgress('获取默认Chromium路径失败，使用备用路径');
+        executablePath = '/usr/bin/chromium-browser';
+      }
+    } else {
+      // 本地环境 - 尝试使用Edge或Chrome
+      logProgress('在本地环境中启动浏览器');
+      const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+      const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+      
+      try {
+        if (fs.existsSync(edgePath)) {
+          executablePath = edgePath;
+          logProgress('使用Edge浏览器: ' + executablePath);
+        } else if (fs.existsSync(chromePath)) {
+          executablePath = chromePath;
+          logProgress('使用Chrome浏览器: ' + executablePath);
+        } else {
+          throw new Error('未找到Edge或Chrome浏览器');
+        }
+      } catch (error) {
+        logProgress('查找本地浏览器失败: ' + error.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: '未找到可用的浏览器，请确保安装了Edge或Chrome'
+        });
+      }
+    }
+    
+    // 启动浏览器，使用检测到的可执行路径
+    logProgress('启动浏览器，使用路径: ' + executablePath);
     browser = await puppeteer.launch({
+      executablePath,
       headless: true,
       args: [
         '--no-sandbox',
@@ -458,9 +501,52 @@ app.post('/api/search-questions', async (req, res) => {
     console.log(`解析后的Cookie对象数量: ${cookieObjects.length}`);
 
     // 启动浏览器
-    // 在云环境中使用内置的Chromium
-    console.log('在云环境中启动浏览器');
+    // 检测环境并选择合适的浏览器路径
+    let executablePath = '';
+    const isCloudEnv = process.env.NODE_ENV === 'production' && !process.env.IS_LOCAL;
+    
+    if (isCloudEnv) {
+      // 在云环境中使用内置的Chromium
+      console.log('在云环境中启动浏览器');
+      try {
+        // 尝试使用puppeteer自带的Chromium
+        const puppeteerDefault = require('puppeteer');
+        executablePath = puppeteerDefault.executablePath();
+        console.log('使用Puppeteer默认Chromium路径: ' + executablePath);
+      } catch (error) {
+        // 如果获取默认路径失败，使用常见的云环境Chromium路径
+        console.log('获取默认Chromium路径失败，使用备用路径');
+        executablePath = '/usr/bin/chromium-browser';
+      }
+    } else {
+      // 本地环境 - 尝试使用Edge或Chrome
+      console.log('在本地环境中启动浏览器');
+      const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+      const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+      
+      try {
+        if (fs.existsSync(edgePath)) {
+          executablePath = edgePath;
+          console.log('使用Edge浏览器: ' + executablePath);
+        } else if (fs.existsSync(chromePath)) {
+          executablePath = chromePath;
+          console.log('使用Chrome浏览器: ' + executablePath);
+        } else {
+          throw new Error('未找到Edge或Chrome浏览器');
+        }
+      } catch (error) {
+        console.log('查找本地浏览器失败: ' + error.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: '未找到可用的浏览器，请确保安装了Edge或Chrome'
+        });
+      }
+    }
+    
+    // 启动浏览器，使用检测到的可执行路径
+    console.log('启动浏览器，使用路径: ' + executablePath);
     browser = await puppeteer.launch({
+      executablePath,
       headless: true,
       args: [
         '--no-sandbox',
