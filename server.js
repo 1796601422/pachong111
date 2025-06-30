@@ -152,9 +152,19 @@ app.post('/api/fetch-zhihu-data', async (req, res) => {
         '--disable-setuid-sandbox',
         '--disable-web-security',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-site-isolation-trials',
+        '--ignore-certificate-errors',
+        '--ignore-certificate-errors-spki-list',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--enable-features=NetworkService',
+        '--window-size=1920,1080',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
       ],
-      defaultViewport: { width: 1920, height: 1080 }
+      defaultViewport: { width: 1920, height: 1080 },
+      timeout: 180000 // 3分钟总超时
     });
 
     const page = await browser.newPage();
@@ -162,13 +172,39 @@ app.post('/api/fetch-zhihu-data', async (req, res) => {
     // 设置视窗大小，模拟桌面浏览
     await page.setViewport({ width: 1920, height: 1080 });
     
+    // 设置请求拦截器，阻止加载不必要的资源
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+      // 阻止加载图片、字体、媒体等资源，加快页面加载速度
+      if (['image', 'font', 'media', 'stylesheet'].includes(resourceType)) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
+    
     // 注入Cookie
     await page.setCookie(...cookieObjects);
     logProgress('已注入Cookie到浏览器');
 
     // 导航到目标页面
     logProgress('正在导航到页面: ' + url);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 }); // 恢复适中的超时时间
+    try {
+      // 使用更宽松的等待条件和更长的超时时间
+      await page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 120000 // 2分钟超时
+      });
+      
+      // 额外等待一段时间确保页面加载
+      logProgress('页面初步加载完成，等待额外时间确保内容加载...');
+      await new Promise(resolve => setTimeout(resolve, 8000));
+      
+    } catch (error) {
+      logProgress('导航超时，尝试继续处理页面: ' + error.message);
+      // 即使超时也继续执行，因为页面可能已经部分加载
+    }
     
     // 智能等待关键元素出现
     logProgress('等待页面加载完成...');
@@ -553,15 +589,37 @@ app.post('/api/search-questions', async (req, res) => {
         '--disable-setuid-sandbox',
         '--disable-web-security',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-site-isolation-trials',
+        '--ignore-certificate-errors',
+        '--ignore-certificate-errors-spki-list',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--enable-features=NetworkService',
+        '--window-size=1920,1080',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
       ],
-      defaultViewport: { width: 1920, height: 1080 }
+      defaultViewport: { width: 1920, height: 1080 },
+      timeout: 180000 // 3分钟总超时
     });
 
     const searchPage = await browser.newPage();
     
     // 设置视窗大小，模拟桌面浏览
     await searchPage.setViewport({ width: 1920, height: 1080 });
+    
+    // 设置请求拦截器，阻止加载不必要的资源
+    await searchPage.setRequestInterception(true);
+    searchPage.on('request', (request) => {
+      const resourceType = request.resourceType();
+      // 阻止加载图片、字体、媒体等资源，加快页面加载速度
+      if (['image', 'font', 'media', 'stylesheet'].includes(resourceType)) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
     
     // 注入Cookie
     await searchPage.setCookie(...cookieObjects);
@@ -572,20 +630,74 @@ app.post('/api/search-questions', async (req, res) => {
     
     // 导航到搜索页面
     console.log('正在导航到搜索页面:', searchUrl);
-    await searchPage.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+    try {
+      // 增加超时时间，并使用更宽松的等待条件
+      await searchPage.goto(searchUrl, { 
+        waitUntil: 'domcontentloaded', // 更改为domcontentloaded而非networkidle2
+        timeout: 60000 // 增加到60秒
+      });
+      
+      // 额外等待一段时间确保页面加载
+      console.log('页面初步加载完成，等待额外时间确保内容加载...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+    } catch (error) {
+      console.log('导航超时，尝试继续处理页面:', error.message);
+      // 即使超时也继续执行，因为页面可能已经部分加载
+    }
     
     // 等待页面加载 - 更新选择器，使用更通用的选择器
     console.log('等待搜索结果加载...');
     
     // 尝试不同的选择器，处理知乎可能的页面结构变化
-    await Promise.race([
-      searchPage.waitForSelector('.SearchResult-Card', { timeout: 10000 }).catch(() => null),
-      searchPage.waitForSelector('.Card.SearchResult-Card', { timeout: 10000 }).catch(() => null),
-      searchPage.waitForSelector('.QuestionItem', { timeout: 10000 }).catch(() => null),
-      searchPage.waitForSelector('.List-item', { timeout: 10000 }).catch(() => null),
-      searchPage.waitForSelector('[data-za-detail-view-path-module="questionItem"]', { timeout: 10000 }).catch(() => null),
-      new Promise(resolve => setTimeout(resolve, 12000)) // 最长等待12秒
-    ]);
+    let selectorFound = false;
+    const maxRetries = 3;
+    
+    for (let retry = 0; retry < maxRetries && !selectorFound; retry++) {
+      if (retry > 0) {
+        console.log(`第${retry}次重试加载搜索结果...`);
+        // 刷新页面
+        try {
+          await searchPage.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } catch (error) {
+          console.log('页面刷新失败:', error.message);
+        }
+      }
+      
+      try {
+        // 尝试不同的选择器
+        const result = await Promise.race([
+          searchPage.waitForSelector('.SearchResult-Card', { timeout: 15000 })
+            .then(() => { selectorFound = true; return '.SearchResult-Card'; })
+            .catch(() => null),
+          searchPage.waitForSelector('.Card.SearchResult-Card', { timeout: 15000 })
+            .then(() => { selectorFound = true; return '.Card.SearchResult-Card'; })
+            .catch(() => null),
+          searchPage.waitForSelector('.QuestionItem', { timeout: 15000 })
+            .then(() => { selectorFound = true; return '.QuestionItem'; })
+            .catch(() => null),
+          searchPage.waitForSelector('.List-item', { timeout: 15000 })
+            .then(() => { selectorFound = true; return '.List-item'; })
+            .catch(() => null),
+          searchPage.waitForSelector('[data-za-detail-view-path-module="questionItem"]', { timeout: 15000 })
+            .then(() => { selectorFound = true; return '[data-za-detail-view-path-module="questionItem"]'; })
+            .catch(() => null),
+          new Promise(resolve => setTimeout(() => resolve(null), 20000)) // 最长等待20秒
+        ]);
+        
+        if (result) {
+          console.log(`找到选择器: ${result}`);
+          break;
+        }
+      } catch (error) {
+        console.log(`等待选择器出现失败: ${error.message}`);
+      }
+    }
+    
+    if (!selectorFound) {
+      console.log('警告: 未能找到任何搜索结果选择器，将尝试继续处理页面');
+    }
     
     // 等待额外时间确保页面完全加载
     await new Promise(resolve => setTimeout(resolve, 2000));

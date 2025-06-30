@@ -19,10 +19,16 @@ RUN npm config set loglevel error && \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 
-# 安装Chromium依赖
+# 安装Chromium依赖和网络工具
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    ca-certificates \
+    curl \
+    wget \
+    iputils-ping \
+    net-tools \
+    dnsutils \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
